@@ -69,11 +69,7 @@ else:
 senderFirstName = args.your_name
 senderName = args.your_name + " <" + args.your_email + ">"
 sender = args.your_email
-password = args.your_password  # "your-onetime-password-goes-here"
-# print(password)
-
-# A map of e-mail to names
-# names[e-mail] = name
+password = args.your_password
 
 names = {}
 with open(args.conference + "-pcinfo.csv", "r") as csvfile:
@@ -128,8 +124,9 @@ with open(args.conference + "-pcconflicts.csv", "r") as csvfile:
 # Shuffle paper order.
 for k in conflicts:
     random.shuffle(conflicts[k])
+
 # Now, we read in all authors.
-# We will use this to add noise to the potential conflicts.
+# We can use this to add noise to the potential conflicts (currently disabled).
 
 authorsList = []
 with open(args.conference + "-authors.csv", "r") as csvfile:
@@ -171,7 +168,7 @@ for (count, recipient) in enumerate(s, 1):
     for (paper_id, l) in c:
         # print("l = (" + str(l) + ")")
         key = recipient + args.hashcode + paper_id
-        uid = bcrypt.hashpw(key.encode('utf8'), bcrypt.gensalt())
+        uid = bcrypt.hashpw(key.encode("utf8"), bcrypt.gensalt())
         reduced_uid = str(uid)[9:21]
         uidmap.write(recipient + "," + paper_id + "," + reduced_uid + "\n")
         msg += str(ind) + ". " + "(UID = " + reduced_uid + ") - "
