@@ -1,7 +1,7 @@
 # ASPLOS-2021
 
 This repository contains scripts used for ASPLOS-21 (more to come).
-Author: Emery Berger <emery.berger@gmail.com>
+Author: Emery Berger (<emery.berger@gmail.com>).
 Released into the public domain.
 
 ## conflict-vetter.py
