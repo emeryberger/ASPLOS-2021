@@ -9,7 +9,20 @@ import random
 import smtplib
 import sys
 import time
+from typing import Dict, List
 from collections import defaultdict
+
+parser = argparse.ArgumentParser("conflict-vetter")
+parser.add_argument("--conference", help="conference name, as in pldi-2016")
+parser.add_argument("--hashcode", help="hash code, for obscuring paper IDs")
+parser.add_argument("--your-name", help="your name goes here, for signing the emails.")
+parser.add_argument(
+    "--your-email", help="your email goes here, for sending the emails."
+)
+parser.add_argument(
+    "--your-password", help="your password goes here, for sending the emails."
+)
+parser.add_argument("--really-send", help="indicate this to actually send mails.")
 
 
 def my_hash(s):
@@ -19,15 +32,9 @@ def my_hash(s):
     h = 2166136261
     for c in s:
         h = h ^ ord(c)
-        h = (h * 16777619) % (2**32)
+        h = (h * 16777619) % (2 ** 32)
     return h
-    
-parser = argparse.ArgumentParser("conflict-vetter")
-parser.add_argument("--conference", help="conference name, as in pldi-2016")
-parser.add_argument("--hashcode", help="hash code, for obscuring paper IDs")
-parser.add_argument("--your-name", help="your name goes here, for signing the emails.")
-parser.add_argument("--your-email", help="your email goes here, for sending the emails.")
-parser.add_argument("--your-password", help="your password goes here, for sending the emails.")
+
 
 args = parser.parse_args()
 
@@ -35,38 +42,40 @@ if not args.conference or not args.hashcode or not args.your_name:
     parser.print_help()
     sys.exit(-1)
 
-# Change to True to really send mail
-reallySendMail = False
+if args.really_send:
+    reallySendMail = True
+else:
+    reallySendMail = False
 
 senderFirstName = args.your_name
 senderName = args.your_name + " <" + args.your_email + ">"
 sender = args.your_email
 # Assuming you use 2FA, you can generate an App Password for use here at https://security.google.com/settings/security/apppasswords
-password = args.your_password # "your-onetime-password-goes-here"
+password = args.your_password  # "your-onetime-password-goes-here"
 # print(password)
 
 # A map of e-mail to names
 # names[e-mail] = name
 
 names = {}
-with open(args.conference + '-pcinfo.csv','r') as csvfile:
-    reader = csv.DictReader(csvfile,delimiter=',')
+with open(args.conference + "-pcinfo.csv", "r") as csvfile:
+    reader = csv.DictReader(csvfile, delimiter=",")
     for row in reader:
-        key = row['email'].lower()
-        value = row['first'] + " " + row['last']
+        key = row["email"].lower()
+        value = row["first"] + " " + row["last"]
         names[key] = value
 
 
 # Now we build a list of authors for each paper.
 # allAuthors[paper number] = list of authors (by name and e-mail)
 
-allAuthors = defaultdict(list)
+allAuthors: Dict[str, List[str]] = defaultdict(list)
 
-with open(args.conference + '-authors.csv','r') as csvfile:
-    reader = csv.DictReader(csvfile,delimiter=',')
+with open(args.conference + "-authors.csv", "r") as csvfile:
+    reader = csv.DictReader(csvfile, delimiter=",")
     for row in reader:
-        key = row['paper']
-        value = row['first'] + " " + row['last'] + " <" + row['email'] + ">"
+        key = row["paper"]
+        value = row["first"] + " " + row["last"] + " <" + row["email"] + ">"
         allAuthors[key].append(value)
 
 #
@@ -75,26 +84,28 @@ with open(args.conference + '-authors.csv','r') as csvfile:
 #
 
 conflicts = defaultdict(list)
-conflict_types = defaultdict(lambda: defaultdict(str))
+conflict_types: Dict[str, Dict[str, str]] = defaultdict(lambda: defaultdict(str))
 
-with open(args.conference + '-pcconflicts.csv','r') as csvfile:
-    reader = csv.DictReader(csvfile,delimiter=',')
+with open(args.conference + "-pcconflicts.csv", "r") as csvfile:
+    reader = csv.DictReader(csvfile, delimiter=",")
     for row in reader:
-        value = list(set(allAuthors[row['paper']]))
+        alist = list(set(allAuthors[row["paper"]]))
         # Filter out institutional conflicts.
-        recipient_domain = row['email'].split("@")[1]
-        if row['conflicttype'] not in ["Pinned conflict", "Personal", "Other"]:
+        recipient_domain = row["email"].split("@")[1]
+        if row["conflicttype"] not in ["Pinned conflict", "Personal", "Other"]:
             continue
         if recipient_domain in ["outlook.com", "yahoo.com", "gmail.com"]:
             pass
         else:
             try:
-                if recipient_domain in list(map(lambda name: name.split('<')[1].split("@")[1][:-1], value)):
+                if recipient_domain in list(
+                    map(lambda name: name.split("<")[1].split("@")[1][:-1], alist)
+                ):
                     continue
             except:
                 pass
-        conflicts[row['email']].append((row['paper'], value))
-        conflict_types[row['email']][row['paper']] = row['conflicttype']
+        conflicts[row["email"]].append((row["paper"], value))
+        conflict_types[row["email"]][row["paper"]] = row["conflicttype"]
 
 # Shuffle paper order.
 for k in conflicts:
@@ -104,16 +115,16 @@ for k in conflicts:
 # We will use this to add noise to the potential conflicts.
 
 authorsList = []
-with open(args.conference + '-authors.csv','r') as csvfile:
-    reader = csv.DictReader(csvfile,delimiter=',')
+with open(args.conference + "-authors.csv", "r") as csvfile:
+    reader = csv.DictReader(csvfile, delimiter=",")
     for row in reader:
-        key = row['first'] + " " + row['last']
-        value = row['email']
+        key = row["first"] + " " + row["last"]
+        value = row["email"]
         authorsList.append(value)
 
 
 if reallySendMail:
-    server = smtplib.SMTP('smtp.gmail.com', 587)
+    server = smtplib.SMTP("smtp.gmail.com", 587)
     server.ehlo()
     server.starttls()
     server.login(sender, password)
@@ -124,9 +135,9 @@ if True:
     msg = ""
     for (count, recipient) in enumerate(s, 1):
         if reallySendMail:
-            time.sleep(1) # To avoid Google throttling
+            time.sleep(1)  # To avoid Google throttling
         msg = "From: " + senderName + "\nSubject: Conflicts to vet: "
-        if (recipient.lower() in names):
+        if recipient.lower() in names:
             msg += names[recipient.lower()]
         else:
             msg += recipient
@@ -137,9 +148,7 @@ if True:
         c = conflicts[recipient]
         ind = 1
         for (paper_id, l) in c:
-            some_content = False
             uid = str(my_hash(recipient) ^ int(args.hashcode) ^ int(paper_id))
-            some_content = True
             msg += str(ind) + ". " + "(UID = " + uid + ") - "
             ctype = conflict_types[recipient][paper_id]
             if ctype == "Pinned conflict":
@@ -149,15 +158,15 @@ if True:
             for k in l:
                 msg += str(k)
                 i += 1
-                if (i != len(l)):
+                if i != len(l):
                     msg += ", "
             msg += "\n"
             ind += 1
         msg += "\n\nThanks,\n" + senderFirstName + "\n"
-        msg = msg.encode('utf-8')
-        if (reallySendMail):
+        text_msg = msg.encode("utf-8")
+        if reallySendMail:
             print("Sending mail to " + recipient + "...")
-            server.sendmail(sender, recipient, msg)
+            server.sendmail(sender, recipient, text_msg)
         else:
             print(recipient + "," + str(my_hash(recipient)))
 
