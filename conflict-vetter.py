@@ -13,7 +13,7 @@ from typing import Dict, List
 from collections import defaultdict
 
 parser = argparse.ArgumentParser("conflict-vetter")
-parser.add_argument("--conference", help="conference name, as in pldi-2016")
+parser.add_argument("--conference", help="conference name, as in asplos2021")
 parser.add_argument("--hashcode", help="hash code, for obscuring paper IDs")
 parser.add_argument("--your-name", help="your name goes here, for signing the emails.")
 parser.add_argument(
@@ -22,6 +22,8 @@ parser.add_argument(
 parser.add_argument(
     "--your-password", help="your password goes here, for sending the emails."
 )
+parser.add_argument("--form-url", help="URL for form to fill out (e.g., Google Form).")
+
 parser.add_argument("--really-send", help="indicate this to actually send mails.")
 
 
@@ -142,7 +144,11 @@ if True:
         else:
             msg += recipient
         msg += "\n\nHi,\n\n"
-        msg += "This mail contains a list of all papers for which you have been marked\nas a conflict. The actual paper numbers have been encrypted.\n\nPlease check each author list to verify that at least one of the authors for\neach paper looks like a legitimate conflict. IF NOT, please enter each one on this form:\n\n  https://forms.gle/sF1gCrGuQz34HiiD7.\n\n"
+        msg += (
+            "This mail contains a list of all papers for which you have been marked\nas a conflict. The actual paper numbers have been encrypted.\n\nPlease check each author list to verify that at least one of the authors for\neach paper looks like a legitimate conflict. IF NOT, please enter each one on this form:\n\n  "
+            + args.form_url
+            + ".\n\n"
+        )
         # Not actually sampling from random authors right now.
         # r = random.sample(authorsList,5)
         c = conflicts[recipient]
