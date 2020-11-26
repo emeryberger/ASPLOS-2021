@@ -3,7 +3,35 @@
 # Author: Emery Berger <emery.berger@gmail.com>
 # Released into the public domain.
 
+# You will probably need to install bcrypt:
+#   % python3 -m pip install bcrypt
+
+# To use this script for your conference, you first need to download the following files from HotCRP:
+#   confname-pcinfo.csv
+#      go to https://confname.hotcrp.com/users?t=pc
+#      scroll to the bottom, select all, click download, and choose "PC info".
+#   confname-authors.csv
+#      go to https://confname.hotcrp.com/search?q=&t=s
+#      scroll to the bottom, select all, click download, and choose "Authors".
+#   confname-pcconflicts.csv
+#      go to https://confname.hotcrp.com/search?q=&t=s
+#      scroll to the bottom, select all, click download, and choose "PC conflicts".
+
+# You need to the run the script with a number of options, specified at the command line.
+# The command will look something like this:
+#
+#   % python3 conflict-vetter.py --conference asplos21 --hashcode hellokitty --your-name "Emery Berger" --your-email "emery.berger@gmail.com" --your-password goodbyedoggy --form-url "https://forms.gle/someform"
+#
+# If you are using 2FA for Google mail, you can generate an App Password for use here:
+#    https://security.google.com/settings/security/apppasswords
+#
+# NOTE: this command will only actually send mail if you explicitly add the command-line option --really-send
+#
+# As a side effect, this command produces an output file uidmap.csv, which you can use to reverse-lookup
+# paper numbers from uids.
+
 import argparse
+import bcrypt
 import csv
 import random
 import smtplib
@@ -27,17 +55,6 @@ parser.add_argument("--form-url", help="URL for form to fill out (e.g., Google F
 parser.add_argument("--really-send", help="indicate this to actually send mails.")
 
 
-def my_hash(s):
-    """implementation of FNV-1a algorithm"""
-    # https://softwareengineering.stackexchange.com/questions/49550/which-hashing-algorithm-is-best-for-uniqueness-and-speed
-    # http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
-    h = 2166136261
-    for c in s:
-        h = h ^ ord(c)
-        h = (h * 16777619) % (2 ** 32)
-    return h
-
-
 args = parser.parse_args()
 
 if not args.conference or not args.hashcode or not args.your_name:
@@ -52,7 +69,6 @@ else:
 senderFirstName = args.your_name
 senderName = args.your_name + " <" + args.your_email + ">"
 sender = args.your_email
-# Assuming you use 2FA, you can generate an App Password for use here at https://security.google.com/settings/security/apppasswords
 password = args.your_password  # "your-onetime-password-goes-here"
 # print(password)
 
@@ -106,13 +122,12 @@ with open(args.conference + "-pcconflicts.csv", "r") as csvfile:
                     continue
             except:
                 pass
-        conflicts[row["email"]].append((row["paper"], value))
+        conflicts[row["email"]].append((row["paper"], alist))
         conflict_types[row["email"]][row["paper"]] = row["conflicttype"]
 
 # Shuffle paper order.
 for k in conflicts:
     random.shuffle(conflicts[k])
-
 # Now, we read in all authors.
 # We will use this to add noise to the potential conflicts.
 
@@ -124,6 +139,8 @@ with open(args.conference + "-authors.csv", "r") as csvfile:
         value = row["email"]
         authorsList.append(value)
 
+uidmap = open("uidmap.csv", "w")
+uidmap.write("email,paper,uid\n")
 
 if reallySendMail:
     server = smtplib.SMTP("smtp.gmail.com", 587)
@@ -131,50 +148,56 @@ if reallySendMail:
     server.starttls()
     server.login(sender, password)
 
-
-if True:
-    s = sorted(conflicts.keys())
-    msg = ""
-    for (count, recipient) in enumerate(s, 1):
-        if reallySendMail:
-            time.sleep(1)  # To avoid Google throttling
-        msg = "From: " + senderName + "\nSubject: Conflicts to vet: "
-        if recipient.lower() in names:
-            msg += names[recipient.lower()]
-        else:
-            msg += recipient
-        msg += "\n\nHi,\n\n"
-        msg += (
-            "This mail contains a list of all papers for which you have been marked\nas a conflict. The actual paper numbers have been encrypted.\n\nPlease check each author list to verify that at least one of the authors for\neach paper looks like a legitimate conflict. IF NOT, please enter each one on this form:\n\n  "
-            + args.form_url
-            + ".\n\n"
-        )
-        # Not actually sampling from random authors right now.
-        # r = random.sample(authorsList,5)
-        c = conflicts[recipient]
-        ind = 1
-        for (paper_id, l) in c:
-            uid = str(my_hash(recipient) ^ int(args.hashcode) ^ int(paper_id))
-            msg += str(ind) + ". " + "(UID = " + uid + ") - "
-            ctype = conflict_types[recipient][paper_id]
-            if ctype == "Pinned conflict":
-                ctype = "Auto-detected conflict (probably institutional)"
-            msg += ctype + " : "
-            i = 0
-            for k in l:
-                msg += str(k)
-                i += 1
-                if i != len(l):
-                    msg += ", "
-            msg += "\n"
-            ind += 1
-        msg += "\n\nThanks,\n" + senderFirstName + "\n"
-        text_msg = msg.encode("utf-8")
-        if reallySendMail:
-            print("Sending mail to " + recipient + "...")
-            server.sendmail(sender, recipient, text_msg)
-        else:
-            print(recipient + "," + str(my_hash(recipient)))
+s = sorted(conflicts.keys())
+msg = ""
+for (count, recipient) in enumerate(s, 1):
+    if reallySendMail:
+        time.sleep(1)  # To avoid Google throttling
+    msg = "From: " + senderName + "\nSubject: Conflicts to vet: "
+    if recipient.lower() in names:
+        msg += names[recipient.lower()]
+    else:
+        msg += recipient
+    msg += "\n\nHi,\n\n"
+    msg += (
+        "This mail contains a list of all papers for which you have been marked\nas a conflict. The actual paper numbers have been encrypted.\n\nPlease check each author list to verify that at least one of the authors for\neach paper looks like a legitimate conflict. IF NOT, please enter each one on this form:\n\n  "
+        + args.form_url
+        + ".\n\n"
+    )
+    # Not actually sampling from random authors right now.
+    # r = random.sample(authorsList,5)
+    c = conflicts[recipient]
+    ind = 1
+    for (paper_id, l) in c:
+        # print("l = (" + str(l) + ")")
+        key = recipient + args.hashcode + paper_id
+        uid = bcrypt.hashpw(key.encode('utf8'), bcrypt.gensalt())
+        reduced_uid = str(uid)[9:21]
+        uidmap.write(recipient + "," + paper_id + "," + reduced_uid + "\n")
+        msg += str(ind) + ". " + "(UID = " + reduced_uid + ") - "
+        ctype = conflict_types[recipient][paper_id]
+        if ctype == "Pinned conflict":
+            ctype = "Auto-detected conflict (probably institutional)"
+        msg += ctype + " : "
+        i = 0
+        for k in l:
+            msg += str(k)
+            i += 1
+            if i != len(l):
+                msg += ", "
+        msg += "\n"
+        ind += 1
+    msg += "\n\nThanks,\n" + senderFirstName + "\n"
+    text_msg = msg.encode("utf-8")
+    if reallySendMail:
+        print("Sending mail to " + recipient + "...")
+        server.sendmail(sender, recipient, text_msg)
+    else:
+        print("not sending mail to " + recipient)
+        print("(use --really-send to actually send mail)")
+        print(text_msg)
 
 if reallySendMail:
     server.quit()
+
+uidmap.close()
