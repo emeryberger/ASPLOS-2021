@@ -1,5 +1,7 @@
 ### Managing a PC meeting over Zoom.
 
+These scripts were written by Breanna Devore-McDonald and Nicolas van Kempen.
+
 First steps:
 
 1. Collect information about time availability via Doodle; save as "Doodle_availability.csv".
