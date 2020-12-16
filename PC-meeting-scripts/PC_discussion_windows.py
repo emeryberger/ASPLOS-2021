@@ -40,13 +40,13 @@ PCEMAILS = 'emails.csv' # the email addresses and names of each heavy PC member.
 # with N-1 members.
 #
 # Examples:
-# 203  13 30 Tuesday 12 00 Tuesday 13 00 Tuesday 11 00 Tuesday 11 30
+# 2001  13 30 Tuesday 12 00 Tuesday 13 00 Tuesday 11 00 Tuesday 11 30
 #      Tuesday 12 30 Tuesday
-# 321*  12 00 Tuesday 06 30 Tuesday 07 00 Tuesday 07 30 Tuesday 07 00
+# 3333*  12 00 Tuesday 06 30 Tuesday 07 00 Tuesday 07 30 Tuesday 07 00
 #       Wednesday 11 00 Tuesday 11 30 Tuesday 07 30 Wednesday
 #
-# Paper 203 has 6 30min timeslots on Tuesday for EVERYONE to meet
-# Paper 321 doesn't have any timeslots where everyone can meet. It has
+# Paper 2001 has 6 30min timeslots on Tuesday for EVERYONE to meet
+# Paper 3333 doesn't have any timeslots where everyone can meet. It has
 # 8 timeslots where N-1 members can meet (doesn't say who can't meet currently,
 # but that would be straightforward to add)
 
