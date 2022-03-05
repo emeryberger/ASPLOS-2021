@@ -1,5 +1,7 @@
 # ASPLOS-2021
 
+**These scripts and others are now being maintained at https://github.com/emeryberger/PC-resources. Please use that repository instead.***
+
 This repository contains scripts used for ASPLOS-21 (more to come).
 Author: Emery Berger (<emery.berger@gmail.com>).
 Released into the public domain.
